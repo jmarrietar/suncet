@@ -994,7 +994,8 @@ class TransImageNet(ImageNet):
 
         if self.dataset.transform is not None:
             if self.supervised:
-                return *[self.dataset.transform(img) for _ in range(self.supervised_views)], target
+                ans = *[self.dataset.transform(img) for _ in range(self.supervised_views)], target
+                return ans
             else:
                 img_1 = self.dataset.transform(img)
                 img_2 = self.dataset.transform(img)
@@ -1002,7 +1003,8 @@ class TransImageNet(ImageNet):
                 multicrop, mc_transform = self.multicrop_transform
                 if multicrop > 0 and mc_transform is not None:
                     mc_imgs = [mc_transform(img) for _ in range(int(multicrop))]
-                    return img_1, img_2, *mc_imgs, target
+                    ans = img_1, img_2, *mc_imgs, target
+                    return ans
 
                 return img_1, img_2, target
 
@@ -1063,7 +1065,8 @@ class TransCIFAR10(torchvision.datasets.CIFAR10):
         if self.transform is not None:
 
             if self.supervised:
-                return *[self.transform(img) for _ in range(self.supervised_views)], target
+                ans = *[self.transform(img) for _ in range(self.supervised_views)], target
+                return ans
 
             else:
                 img_1 = self.transform(img)
@@ -1072,7 +1075,8 @@ class TransCIFAR10(torchvision.datasets.CIFAR10):
                 multicrop, mc_transform = self.multicrop_transform
                 if multicrop > 0 and mc_transform is not None:
                     mc_imgs = [mc_transform(img) for _ in range(int(multicrop))]
-                    return img_1, img_2, *mc_imgs, target
+                    ans = img_1, img_2, *mc_imgs, target
+                    return ans
 
                 return img_1, img_2, target
 
