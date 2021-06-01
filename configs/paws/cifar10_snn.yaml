@@ -14,7 +14,7 @@ data:
   unique_classes_per_rank: false
   unlabeled_frac: 0.92
 logging:
-  folder: /path_to_pretrained_models_and_logs/
+  folder: "/content/drive/MyDrive/Colab Notebooks/PAWS/logs/"
   pretrain_path: paws-latest.pth.tar
   write_tag: paws-latest-SNN
 meta:

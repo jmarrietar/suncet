@@ -19,7 +19,7 @@ data:
   unique_classes_per_rank: false
   unlabeled_frac: 0.92
 logging:
-  folder: /content/drive/MyDrive/Colab Notebooks/PAWS/logs/
+  folder: "/content/drive/MyDrive/Colab Notebooks/PAWS/logs/"
   write_tag: paws
 meta:
   copy_data: true
