@@ -31,7 +31,7 @@ meta:
   use_fp16: true
   use_pred_head: false
 optimization:
-  epochs: 600
+  epochs: 100
   final_lr: 0.032
   lr: 3.2
   momentum: 0.9
