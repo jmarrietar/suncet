@@ -1,6 +1,6 @@
 criterion:
   classes_per_batch: 10
-  me_max: true
+  me_max: false
   sharpen: 0.25
   supervised_imgs_per_class: 64
   supervised_views: 2
@@ -33,7 +33,7 @@ meta:
 optimization:
   epochs: 600
   final_lr: 0.032
-  lr: 0.8
+  lr: 3.2
   momentum: 0.9
   nesterov: false
   start_lr: 0.8
