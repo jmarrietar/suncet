@@ -87,7 +87,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     num_gpus = len(args.devices)
+    """
     mp.spawn(
         process_main,
         nprocs=num_gpus,
         args=(args.sel, args.fname, num_gpus, args.devices))
+    """
+    process_main(0, args.sel, args.fname, num_gpus, args.devices)
