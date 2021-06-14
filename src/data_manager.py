@@ -82,6 +82,23 @@ def init_data(
             training=training,
             copy_data=copy_data)
 
+    elif dataset_name == 'dr':
+        return _init_dr_data(
+            transform=transform,
+            init_transform=init_transform,
+            u_batch_size=u_batch_size,
+            s_batch_size=s_batch_size,
+            classes_per_batch=classes_per_batch,
+            unique_classes=unique_classes,
+            multicrop_transform=multicrop_transform,
+            supervised_views=supervised_views,
+            world_size=world_size,
+            rank=rank,
+            root_path=root_path,
+            image_folder=image_folder,
+            training=training,
+            copy_data=copy_data)
+
     elif dataset_name == 'imagenet_fine_tune':
         batch_size = s_batch_size
         return _init_imgnt_ft_data(
@@ -319,6 +336,83 @@ def _init_imgnt_ft_data(
 
     return (data_loader, dist_sampler)
 
+
+def _init_dr_data(
+    transform,
+    init_transform,
+    u_batch_size,
+    s_batch_size,
+    classes_per_batch,
+    unique_classes=False,
+    multicrop_transform=(0, None),
+    supervised_views=1,
+    world_size=1,
+    rank=0,
+    root_path='/datasets/',
+    image_folder='imagenet_full_size/061417/',
+    training=True,
+    copy_data=False,
+    tar_folder='imagenet_full_size/',
+    tar_file='imagenet_full_size-061417.tar'
+):
+    imagenet = ImageDR(
+        root=root_path,
+        image_folder=image_folder,
+        tar_folder=tar_folder,
+        tar_file=tar_file,
+        transform=transform,
+        train=training,
+        copy_data=copy_data)
+    logger.info('ImageDR dataset created')
+    unsupervised_set = TransImageNet(
+        dataset=imagenet,
+        supervised=False,
+        init_transform=init_transform,
+        multicrop_transform=multicrop_transform,
+        seed=_GLOBAL_SEED)
+    unsupervised_sampler = torch.utils.data.distributed.DistributedSampler(
+        dataset=unsupervised_set,
+        num_replicas=world_size,
+        rank=rank)
+    unsupervised_loader = torch.utils.data.DataLoader(
+        unsupervised_set,
+        sampler=unsupervised_sampler,
+        batch_size=u_batch_size,
+        drop_last=True,
+        pin_memory=True,
+        num_workers=8)
+    logger.info('ImageNet unsupervised data loader created')
+
+    supervised_sampler, supervised_loader = None, None
+    if classes_per_batch > 0 and s_batch_size > 0:
+        logger.info('Making supervised ImageNet data loader...')
+        supervised_set = TransImageDR(
+            dataset=imagenet,
+            supervised=True,
+            supervised_views=supervised_views,
+            init_transform=init_transform,
+            seed=_GLOBAL_SEED)
+        supervised_sampler = ClassStratifiedSampler(
+            data_source=supervised_set,
+            world_size=world_size,
+            rank=rank,
+            batch_size=s_batch_size,
+            classes_per_batch=classes_per_batch,
+            unique_classes=unique_classes,
+            seed=_GLOBAL_SEED)
+        supervised_loader = torch.utils.data.DataLoader(
+            supervised_set,
+            batch_sampler=supervised_sampler,
+            pin_memory=True,
+            num_workers=8)
+        if len(supervised_loader) > 0:
+            tmp = ceil(len(unsupervised_loader) / len(supervised_loader))
+            supervised_sampler.set_inner_epochs(tmp)
+            logger.info(f'supervised-reset-period {tmp}')
+        logger.info('ImageDR supervised data loader created')
+
+    return (unsupervised_loader, unsupervised_sampler,
+            supervised_loader, supervised_sampler)
 
 def _init_imgnt_data(
     transform,
@@ -937,6 +1031,130 @@ class ImageNet(torchvision.datasets.ImageFolder):
             transform=transform,
             target_transform=target_transform)
         logger.info('Initialized ImageNet')
+
+
+class ImageDR(torchvision.datasets.ImageFolder):
+
+    def __init__(
+        self,
+        root,
+        image_folder='imagenet_full_size/061417/',
+        tar_folder='imagenet_full_size/',
+        tar_file='imagenet_full_size-061417.tar',
+        train=True,
+        transform=None,
+        target_transform=None,
+        job_id=None,
+        local_rank=None,
+        copy_data=True
+    ):
+        """
+        ImageNet
+
+        Dataset wrapper (can copy data locally to machine)
+
+        :param root: root network directory for DR data
+        :param image_folder: path to images inside root network directory
+        :param tar_file: zipped image_folder inside root network directory
+        :param train: whether to load train data (or validation)
+        :param transform: data-augmentations (applied in data-loader)
+        :param target_transform: target-transform to apply in data-loader
+        :param job_id: scheduler job-id used to create dir on local machine
+        :param copy_data: whether to copy data from network file locally
+        """
+
+        suffix = 'train/' if train else 'val/'
+        data_path = None
+        if copy_data:
+            logger.info('copying data locally')
+            data_path = copy_imgnt_locally(
+                root=root,
+                suffix=suffix,
+                image_folder=image_folder,
+                tar_folder=tar_folder,
+                tar_file=tar_file,
+                job_id=job_id,
+                local_rank=local_rank)
+        if (not copy_data) or (data_path is None):
+            data_path = os.path.join(root, image_folder, suffix)
+        logger.info(f'data-path {data_path}')
+
+        super(ImageNet, self).__init__(
+            root=data_path,
+            transform=transform,
+            target_transform=target_transform)
+        logger.info('Initialized ImageDR')
+
+class TransImageDR(ImageNet):
+
+    def __init__(
+        self,
+        dataset,
+        supervised=False,
+        supervised_views=1,
+        init_transform=None,
+        multicrop_transform=(0, None),
+        seed=0
+    ):
+        """
+        TransImageDR
+
+        Dataset that can apply transforms to images on initialization and can
+        return multiple transformed copies of the same image in each call
+        to __getitem__
+        """
+        self.dataset = dataset
+        self.supervised = supervised
+        self.supervised_views = supervised_views
+        self.multicrop_transform = multicrop_transform
+
+        self.targets, self.samples = dataset.targets, dataset.samples
+        if self.supervised:
+            self.targets, self.samples = init_transform(
+                dataset.root,
+                dataset.samples,
+                dataset.class_to_idx,
+                seed)
+            logger.debug(f'num-labeled {len(self.samples)}')
+            mint = None
+            self.target_indices = []
+            for t in range(len(dataset.classes)):
+                indices = np.squeeze(np.argwhere(
+                    self.targets == t)).tolist()
+                self.target_indices.append(indices)
+                mint = len(indices) if mint is None else min(mint, len(indices))
+                logger.debug(f'num-labeled target {t} {len(indices)}')
+            logger.debug(f'min. labeled indices {mint}')
+
+    @property
+    def classes(self):
+        return self.dataset.classes
+
+    def __getitem__(self, index):
+        target = self.targets[index]
+        path = self.samples[index][0]
+        img = self.dataset.loader(path)
+
+        if self.dataset.target_transform is not None:
+            target = self.dataset.target_transform(target)
+
+        if self.dataset.transform is not None:
+            if self.supervised:
+                ans = *[self.dataset.transform(img) for _ in range(self.supervised_views)], target
+                return ans
+            else:
+                img_1 = self.dataset.transform(img)
+                img_2 = self.dataset.transform(img)
+
+                multicrop, mc_transform = self.multicrop_transform
+                if multicrop > 0 and mc_transform is not None:
+                    mc_imgs = [mc_transform(img) for _ in range(int(multicrop))]
+                    ans = img_1, img_2, *mc_imgs, target
+                    return ans
+
+                return img_1, img_2, target
+
+        return img, target
 
 
 class TransImageNet(ImageNet):
