@@ -355,7 +355,7 @@ def _init_dr_data(
     tar_folder='imagenet_full_size/',
     tar_file='imagenet_full_size-061417.tar'
 ):
-    imagenet = ImageDR(
+    imagedr = ImageDR(
         root=root_path,
         image_folder=image_folder,
         tar_folder=tar_folder,
@@ -364,8 +364,8 @@ def _init_dr_data(
         train=training,
         copy_data=copy_data)
     logger.info('ImageDR dataset created')
-    unsupervised_set = TransImageNet(
-        dataset=imagenet,
+    unsupervised_set = TransImageDR(
+        dataset=imagedr,
         supervised=False,
         init_transform=init_transform,
         multicrop_transform=multicrop_transform,
@@ -381,13 +381,13 @@ def _init_dr_data(
         drop_last=True,
         pin_memory=True,
         num_workers=8)
-    logger.info('ImageNet unsupervised data loader created')
+    logger.info('ImageDR unsupervised data loader created')
 
     supervised_sampler, supervised_loader = None, None
     if classes_per_batch > 0 and s_batch_size > 0:
-        logger.info('Making supervised ImageNet data loader...')
+        logger.info('Making supervised ImageDR data loader...')
         supervised_set = TransImageDR(
-            dataset=imagenet,
+            dataset=imagedr,
             supervised=True,
             supervised_views=supervised_views,
             init_transform=init_transform,
@@ -516,6 +516,28 @@ def make_transforms(
     """
 
     if 'imagenet' in dataset_name:
+        logger.info('making imagenet data transforms')
+
+        # -- file identifying which imagenet labels to keep
+        keep_file = None
+        if subset_path is not None:
+            if unlabeled_frac >= 0:
+                keep_file = os.path.join(subset_path, f'{int(unlabeled_frac* 100)}percent.txt')
+            else:
+                keep_file = os.path.join(subset_path, 'val.txt')
+            logger.info(f'keep file: {keep_file}')
+
+        return _make_imgnt_transforms(
+            unlabel_prob=unlabeled_frac,
+            training=training,
+            basic=basic_augmentations,
+            force_center_crop=force_center_crop,
+            normalize=normalize,
+            color_distortion=color_jitter,
+            scale=crop_scale,
+            keep_file=keep_file)
+
+    if 'dr' in dataset_name:
         logger.info('making imagenet data transforms')
 
         # -- file identifying which imagenet labels to keep
@@ -1079,7 +1101,7 @@ class ImageDR(torchvision.datasets.ImageFolder):
             data_path = os.path.join(root, image_folder, suffix)
         logger.info(f'data-path {data_path}')
 
-        super(ImageNet, self).__init__(
+        super(ImageDR, self).__init__(
             root=data_path,
             transform=transform,
             target_transform=target_transform)
@@ -1107,6 +1129,8 @@ class TransImageDR(ImageNet):
         self.supervised = supervised
         self.supervised_views = supervised_views
         self.multicrop_transform = multicrop_transform
+
+        print("self.multicrop_transform {}".format(self.multicrop_transform))
 
         self.targets, self.samples = dataset.targets, dataset.samples
         if self.supervised:
@@ -1179,6 +1203,8 @@ class TransImageNet(ImageNet):
         self.supervised = supervised
         self.supervised_views = supervised_views
         self.multicrop_transform = multicrop_transform
+
+        print("self.multicrop_transform IS {}".format(self.multicrop_transform))
 
         self.targets, self.samples = dataset.targets, dataset.samples
         if self.supervised:

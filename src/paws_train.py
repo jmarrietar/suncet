@@ -172,6 +172,8 @@ def main(args):
         unique_classes=unique_classes,
         smoothing=label_smoothing)
 
+    print("normalize {}".format(normalize))
+
     # -- make data transforms
     transform, init_transform = make_transforms(
         dataset_name=dataset_name,
