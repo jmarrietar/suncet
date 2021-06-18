@@ -1,5 +1,6 @@
 criterion:
   classes_per_batch: 2
+  supervised_epochs: 10
   me_max: true
   sharpen: 0.25
   supervised_imgs_per_class: 32
@@ -31,7 +32,7 @@ meta:
   use_fp16: true
   use_pred_head: true
 optimization:
-  epochs: 100
+  epochs: 10
   final_lr: 0.064
   lr: 6.4
   momentum: 0.9
