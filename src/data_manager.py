@@ -364,6 +364,7 @@ def _init_dr_data(
         train=training,
         copy_data=copy_data)
     logger.info('ImageDR dataset created')
+    multicrop_transform=(0, None)
     unsupervised_set = TransImageDR(
         dataset=imagedr,
         supervised=False,
@@ -395,10 +396,13 @@ def _init_dr_data(
         supervised_sampler = ClassStratifiedSampler(
             data_source=supervised_set,
             world_size=world_size,
+            #world_size=4,
             rank=rank,
             batch_size=s_batch_size,
-            classes_per_batch=classes_per_batch,
-            unique_classes=unique_classes,
+            #classes_per_batch=classes_per_batch,
+            classes_per_batch=2,
+            #unique_classes=unique_classes,
+            unique_classes=False,
             seed=_GLOBAL_SEED)
         supervised_loader = torch.utils.data.DataLoader(
             supervised_set,
