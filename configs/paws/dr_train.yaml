@@ -1,5 +1,5 @@
 criterion:
-  classes_per_batch: 15
+  classes_per_batch: 2
   me_max: true
   sharpen: 0.25
   supervised_imgs_per_class: 32
@@ -16,7 +16,7 @@ data:
   normalize: true
   root_path: datasets/
   subset_path: dr_subsets
-  unique_classes_per_rank: true
+  unique_classes_per_rank: false
   unlabeled_frac: 0.9
 logging:
   folder: "logs/"
