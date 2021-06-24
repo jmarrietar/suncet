@@ -768,7 +768,14 @@ def make_multicrop_transform(
     normalize,
     color_distortion
 ):
-    if 'imagenet' in dataset_name:
+    if 'dr' in dataset_name:
+        return _make_multicrop_imgnt_transforms(
+            num_crops=num_crops,
+            size=size,
+            scale=crop_scale,
+            normalize=normalize,
+            color_distortion=color_distortion)
+    elif 'imagenet' in dataset_name:
         return _make_multicrop_imgnt_transforms(
             num_crops=num_crops,
             size=size,
