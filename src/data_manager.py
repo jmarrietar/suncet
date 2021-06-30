@@ -364,7 +364,7 @@ def _init_dr_data(
         train=training,
         copy_data=copy_data)
     logger.info('ImageDR dataset created')
-    multicrop_transform=(0, None)
+
     unsupervised_set = TransImageDR(
         dataset=imagedr,
         supervised=False,
