@@ -1,6 +1,5 @@
 criterion:
   classes_per_batch: 2
-  supervised_epochs: 10
   me_max: true
   sharpen: 0.25
   supervised_imgs_per_class: 32
