@@ -12,7 +12,7 @@ data:
   dataset: dr
   image_folder: dr/sample@1000/
   label_smoothing: 0.1
-  multicrop: 0
+  multicrop: 6
   normalize: true
   root_path: datasets/
   subset_path: dr_subsets
