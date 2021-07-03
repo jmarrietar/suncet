@@ -85,8 +85,23 @@ def init_data(
             copy_data=copy_data,
         )
 
-    # elif dataset_name == 'imagenet_fine_tune':
-    # TO DO: Code to `dr_fine_tune`
+    elif dataset_name == "dr_fine_tune":
+        batch_size = s_batch_size
+        return _init_imgnt_ft_data(
+            transform=transform,
+            init_transform=init_transform,
+            batch_size=batch_size,
+            stratify=stratify,
+            classes_per_batch=classes_per_batch,
+            unique_classes=unique_classes,
+            world_size=world_size,
+            rank=rank,
+            root_path=root_path,
+            image_folder=image_folder,
+            training=training,
+            drop_last=drop_last,
+            copy_data=copy_data,
+        )
 
 
 def _init_dr_data(
@@ -187,6 +202,69 @@ def _init_dr_data(
         supervised_loader,
         supervised_sampler,
     )
+
+
+def _init_imgnt_ft_data(
+    transform,
+    init_transform,
+    batch_size,
+    stratify=False,
+    classes_per_batch=1,
+    unique_classes=False,
+    world_size=1,
+    rank=0,
+    root_path="/datasets/",
+    image_folder="imagenet_full_size/061417/",
+    training=True,
+    copy_data=False,
+    drop_last=True,
+    tar_folder="imagenet_full_size/",
+    tar_file="imagenet_full_size-061417.tar",
+):
+    imagenet = ImageDR(
+        root=root_path,
+        image_folder=image_folder,
+        tar_folder=tar_folder,
+        tar_file=tar_file,
+        transform=transform,
+        train=training,
+        copy_data=copy_data,
+    )
+    logger.info("ImageNet fine-tune dataset created")
+    dataset = TransImageDR(
+        dataset=imagenet,
+        supervised=True,
+        init_transform=init_transform,
+        seed=_GLOBAL_SEED,
+    )
+
+    if not stratify:
+        dist_sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset=dataset, num_replicas=world_size, rank=rank
+        )
+        data_loader = torch.utils.data.DataLoader(
+            dataset,
+            sampler=dist_sampler,
+            batch_size=batch_size,
+            drop_last=drop_last,
+            pin_memory=True,
+            num_workers=8,
+        )
+    else:
+        dist_sampler = ClassStratifiedSampler(
+            data_source=dataset,
+            world_size=world_size,
+            rank=rank,
+            batch_size=batch_size,
+            classes_per_batch=classes_per_batch,
+            seed=_GLOBAL_SEED,
+            unique_classes=unique_classes,
+        )
+        data_loader = torch.utils.data.DataLoader(
+            dataset, batch_sampler=dist_sampler, pin_memory=True, num_workers=8
+        )
+
+    return (data_loader, dist_sampler)
 
 
 def make_transforms(
@@ -353,11 +431,7 @@ def make_multicrop_transform(
 
 
 def _make_multicrop_imgnt_transforms(
-    num_crops,
-    size=96,
-    scale=(0.05, 0.14),
-    normalize=False,
-    color_distortion=1.0,
+    num_crops, size=96, scale=(0.05, 0.14), normalize=False, color_distortion=1.0,
 ):
     def get_color_distortion(s=1.0):
         color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)

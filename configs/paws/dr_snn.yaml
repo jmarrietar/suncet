@@ -5,7 +5,7 @@ criterion:
   temperature: 0.1
 data:
   data_seed: 152
-  dataset: dr
+  dataset: dr_fine_tune
   image_folder: dr/sample@1000/
   label_smoothing: 0.0
   normalize: true
