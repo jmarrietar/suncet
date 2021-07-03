@@ -42,6 +42,7 @@ def init_data(
     root_path=None,
     s_image_folder=None,
     u_image_folder=None,
+    image_folder=None,
     training=True,
     copy_data=False,
     stratify=False,
