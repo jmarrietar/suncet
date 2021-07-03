@@ -45,7 +45,7 @@ def init_data(
     training=True,
     copy_data=False,
     stratify=False,
-    drop_last=True
+    drop_last=True,
 ):
     """
     :param dataset_name: ['imagenet', 'cifar10', 'cifar10_fine_tune', 'imagenet_fine_tune']
@@ -66,7 +66,7 @@ def init_data(
     :param copy_data: whether to copy data locally to node at start of training
     """
 
-    if dataset_name == 'dr':
+    if dataset_name == "dr":
         return _init_dr_data(
             transform=transform,
             init_transform=init_transform,
@@ -82,7 +82,8 @@ def init_data(
             s_image_folder=s_image_folder,
             u_image_folder=u_image_folder,
             training=training,
-            copy_data=copy_data)
+            copy_data=copy_data,
+        )
 
     # elif dataset_name == 'imagenet_fine_tune':
     # TO DO: Code to `dr_fine_tune`
@@ -99,13 +100,13 @@ def _init_dr_data(
     supervised_views=1,
     world_size=1,
     rank=0,
-    root_path='/datasets/',
-    s_image_folder='imagenet_full_size/061417/',
-    u_image_folder='imagenet_full_size/061417/',
+    root_path="/datasets/",
+    s_image_folder="imagenet_full_size/061417/",
+    u_image_folder="imagenet_full_size/061417/",
     training=True,
     copy_data=False,
-    tar_folder='imagenet_full_size/',
-    tar_file='imagenet_full_size-061417.tar'
+    tar_folder="imagenet_full_size/",
+    tar_file="imagenet_full_size-061417.tar",
 ):
     s_imagedr = ImageDR(
         root=root_path,
@@ -114,7 +115,8 @@ def _init_dr_data(
         tar_file=tar_file,
         transform=transform,
         train=training,
-        copy_data=copy_data)
+        copy_data=copy_data,
+    )
 
     u_imagedr = ImageDR(
         root=root_path,
@@ -123,38 +125,41 @@ def _init_dr_data(
         tar_file=tar_file,
         transform=transform,
         train=training,
-        copy_data=copy_data)
-    logger.info('ImageDR dataset created')
+        copy_data=copy_data,
+    )
+    logger.info("ImageDR dataset created")
 
-    logger.info('Making unsupervised ImageDR data loader...')
+    logger.info("Making unsupervised ImageDR data loader...")
     unsupervised_set = TransImageDR(
         dataset=u_imagedr,
         supervised=False,
         init_transform=init_transform,
         multicrop_transform=multicrop_transform,
-        seed=_GLOBAL_SEED)
+        seed=_GLOBAL_SEED,
+    )
     unsupervised_sampler = torch.utils.data.distributed.DistributedSampler(
-        dataset=unsupervised_set,
-        num_replicas=world_size,
-        rank=rank)
+        dataset=unsupervised_set, num_replicas=world_size, rank=rank
+    )
     unsupervised_loader = torch.utils.data.DataLoader(
         unsupervised_set,
         sampler=unsupervised_sampler,
         batch_size=u_batch_size,
         drop_last=True,
         pin_memory=True,
-        num_workers=8)
-    logger.info('ImageDR unsupervised data loader created')
+        num_workers=8,
+    )
+    logger.info("ImageDR unsupervised data loader created")
 
     supervised_sampler, supervised_loader = None, None
     if classes_per_batch > 0 and s_batch_size > 0:
-        logger.info('Making supervised ImageDR data loader...')
+        logger.info("Making supervised ImageDR data loader...")
         supervised_set = TransImageDR(
             dataset=s_imagedr,
             supervised=True,
             supervised_views=supervised_views,
             init_transform=init_transform,
-            seed=_GLOBAL_SEED)
+            seed=_GLOBAL_SEED,
+        )
         supervised_sampler = ClassStratifiedSampler(
             data_source=supervised_set,
             world_size=world_size,
@@ -162,20 +167,26 @@ def _init_dr_data(
             batch_size=s_batch_size,
             classes_per_batch=classes_per_batch,
             unique_classes=unique_classes,
-            seed=_GLOBAL_SEED)
+            seed=_GLOBAL_SEED,
+        )
         supervised_loader = torch.utils.data.DataLoader(
             supervised_set,
             batch_sampler=supervised_sampler,
             pin_memory=True,
-            num_workers=8)
+            num_workers=8,
+        )
         if len(supervised_loader) > 0:
             tmp = ceil(len(unsupervised_loader) / len(supervised_loader))
             supervised_sampler.set_inner_epochs(tmp)
-            logger.info(f'supervised-reset-period {tmp}')
-        logger.info('ImageDR supervised data loader created')
+            logger.info(f"supervised-reset-period {tmp}")
+        logger.info("ImageDR supervised data loader created")
 
-    return (unsupervised_loader, unsupervised_sampler,
-            supervised_loader, supervised_sampler)
+    return (
+        unsupervised_loader,
+        unsupervised_sampler,
+        supervised_loader,
+        supervised_sampler,
+    )
 
 
 def make_transforms(
@@ -188,7 +199,7 @@ def make_transforms(
     crop_scale=(0.08, 1.0),
     color_jitter=1.0,
     normalize=False,
-    split_seed=0
+    split_seed=0,
 ):
     """
     :param dataset_name: ['imagenet', 'cifar10']
@@ -201,18 +212,19 @@ def make_transforms(
     :param normalize: whether to normalize color channels
     """
 
-
-    if 'dr' in dataset_name:
-        logger.info('making imagenet data transforms')
+    if "dr" in dataset_name:
+        logger.info("making imagenet data transforms")
 
         # -- file identifying which imagenet labels to keep
         keep_file = None
         if subset_path is not None:
             if unlabeled_frac >= 0:
-                keep_file = os.path.join(subset_path, f'{int(unlabeled_frac* 100)}percent.txt')
+                keep_file = os.path.join(
+                    subset_path, f"{int(unlabeled_frac* 100)}percent.txt"
+                )
             else:
-                keep_file = os.path.join(subset_path, 'val.txt')
-            logger.info(f'keep file: {keep_file}')
+                keep_file = os.path.join(subset_path, "val.txt")
+            logger.info(f"keep file: {keep_file}")
 
         return _make_imgnt_transforms(
             unlabel_prob=unlabeled_frac,
@@ -222,7 +234,8 @@ def make_transforms(
             normalize=normalize,
             color_distortion=color_jitter,
             scale=crop_scale,
-            keep_file=keep_file)
+            keep_file=keep_file,
+        )
 
 
 def _make_imgnt_transforms(
@@ -233,7 +246,7 @@ def _make_imgnt_transforms(
     normalize=False,
     scale=(0.08, 1.0),
     color_distortion=1.0,
-    keep_file=None
+    keep_file=None,
 ):
     """
     Make data transformations
@@ -247,63 +260,72 @@ def _make_imgnt_transforms(
     :param color_distortion: strength of color distortion
     :param keep_file: file containing names of images to use for semisupervised
     """
+
     def get_color_distortion(s=1.0):
         # s is the strength of color distortion.
-        color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
+        color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
         rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
         rnd_gray = transforms.RandomGrayscale(p=0.2)
-        color_distort = transforms.Compose([
-            rnd_color_jitter,
-            rnd_gray])
+        color_distort = transforms.Compose([rnd_color_jitter, rnd_gray])
         return color_distort
 
-    logger.debug(f'uprob: {unlabel_prob}\t training: {training}\t basic: {basic}\t normalize: {normalize}\t color_distortion: {color_distortion}')
+    logger.debug(
+        f"uprob: {unlabel_prob}\t training: {training}\t basic: {basic}\t normalize: {normalize}\t color_distortion: {color_distortion}"
+    )
     if training and (not force_center_crop):
         if basic:
             transform = transforms.Compose(
-                [transforms.RandomResizedCrop(size=224, scale=scale),
-                 transforms.RandomHorizontalFlip(),
-                 transforms.ToTensor()])
+                [
+                    transforms.RandomResizedCrop(size=224, scale=scale),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                ]
+            )
         else:
-            logger.debug('making training (non-basic) transforms')
+            logger.debug("making training (non-basic) transforms")
             transform = transforms.Compose(
-                [transforms.RandomResizedCrop(size=224, scale=scale),
-                 transforms.RandomHorizontalFlip(),
-                 get_color_distortion(s=color_distortion),
-                 GaussianBlur(p=0.5),
-                 transforms.ToTensor()])
+                [
+                    transforms.RandomResizedCrop(size=224, scale=scale),
+                    transforms.RandomHorizontalFlip(),
+                    get_color_distortion(s=color_distortion),
+                    GaussianBlur(p=0.5),
+                    transforms.ToTensor(),
+                ]
+            )
     else:
         transform = transforms.Compose(
-            [transforms.Resize(size=256),
-             transforms.CenterCrop(size=224),
-             transforms.ToTensor()])
+            [
+                transforms.Resize(size=256),
+                transforms.CenterCrop(size=224),
+                transforms.ToTensor(),
+            ]
+        )
 
     if normalize:
         transform = transforms.Compose(
-            [transform,
-             transforms.Normalize(
-                 (0.485, 0.456, 0.406),
-                 (0.229, 0.224, 0.225))])
+            [
+                transform,
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            ]
+        )
 
-    def init_transform(root, samples, class_to_idx, seed,
-                       keep_file=keep_file,
-                       training=training):
-        """ Transforms applied to dataset at the start of training """
+    def init_transform(
+        root, samples, class_to_idx, seed, keep_file=keep_file, training=training
+    ):
+        """Transforms applied to dataset at the start of training"""
 
         new_targets, new_samples = [], []
         if training and (keep_file is not None) and os.path.exists(keep_file):
-            logger.info(f'Using {keep_file}')
-            with open(keep_file, 'r') as rfile:
+            logger.info(f"Using {keep_file}")
+            with open(keep_file, "r") as rfile:
                 for line in rfile:
-                    class_name = line.split('_')[0]
+                    class_name = line.split("_")[0]
                     target = class_to_idx[class_name]
-                    img = line.split('\n')[0]
-                    new_samples.append(
-                        (os.path.join(root, class_name, img),
-                         target))
+                    img = line.split("\n")[0]
+                    new_samples.append((os.path.join(root, class_name, img), target))
                     new_targets.append(target)
         else:
-            logger.info('flipping coin to keep labels')
+            logger.info("flipping coin to keep labels")
             g = torch.Generator()
             g.manual_seed(seed)
             for sample in samples:
@@ -318,21 +340,16 @@ def _make_imgnt_transforms(
 
 
 def make_multicrop_transform(
-    dataset_name,
-    num_crops,
-    size,
-    crop_scale,
-    normalize,
-    color_distortion
+    dataset_name, num_crops, size, crop_scale, normalize, color_distortion
 ):
-    if 'dr' in dataset_name:
+    if "dr" in dataset_name:
         return _make_multicrop_imgnt_transforms(
             num_crops=num_crops,
             size=size,
             scale=crop_scale,
             normalize=normalize,
-            color_distortion=color_distortion)
-
+            color_distortion=color_distortion,
+        )
 
 
 def _make_multicrop_imgnt_transforms(
@@ -343,34 +360,35 @@ def _make_multicrop_imgnt_transforms(
     color_distortion=1.0,
 ):
     def get_color_distortion(s=1.0):
-        color_jitter = transforms.ColorJitter(0.8*s, 0.8*s, 0.8*s, 0.2*s)
+        color_jitter = transforms.ColorJitter(0.8 * s, 0.8 * s, 0.8 * s, 0.2 * s)
         rnd_color_jitter = transforms.RandomApply([color_jitter], p=0.8)
         rnd_gray = transforms.RandomGrayscale(p=0.2)
-        color_distort = transforms.Compose([
-            rnd_color_jitter,
-            rnd_gray])
+        color_distort = transforms.Compose([rnd_color_jitter, rnd_gray])
         return color_distort
 
-    logger.debug('making multicrop transforms')
+    logger.debug("making multicrop transforms")
     transform = transforms.Compose(
-        [transforms.RandomResizedCrop(size=size, scale=scale),
-         transforms.RandomHorizontalFlip(),
-         get_color_distortion(s=color_distortion),
-         GaussianBlur(p=0.5),
-         transforms.ToTensor()])
+        [
+            transforms.RandomResizedCrop(size=size, scale=scale),
+            transforms.RandomHorizontalFlip(),
+            get_color_distortion(s=color_distortion),
+            GaussianBlur(p=0.5),
+            transforms.ToTensor(),
+        ]
+    )
 
     if normalize:
         transform = transforms.Compose(
-            [transform,
-             transforms.Normalize(
-                 (0.485, 0.456, 0.406),
-                 (0.229, 0.224, 0.225))])
+            [
+                transform,
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            ]
+        )
 
     return (num_crops, transform)
 
 
 class ClassStratifiedSampler(torch.utils.data.Sampler):
-
     def __init__(
         self,
         data_source,
@@ -380,7 +398,7 @@ class ClassStratifiedSampler(torch.utils.data.Sampler):
         classes_per_batch=10,
         epochs=1,
         seed=0,
-        unique_classes=False
+        unique_classes=False,
     ):
         """
         ClassStratifiedSampler
@@ -450,10 +468,13 @@ class ClassStratifiedSampler(torch.utils.data.Sampler):
                 self._next_perm()
 
     def _get_local_samplers(self, epoch):
-        """ Generate samplers for local data set in given epoch """
-        seed = int(self.base_seed + epoch
-                   + self.epochs * self.rank
-                   + self.outer_epoch * self.epochs * self.world_size)
+        """Generate samplers for local data set in given epoch"""
+        seed = int(
+            self.base_seed
+            + epoch
+            + self.epochs * self.rank
+            + self.outer_epoch * self.epochs * self.world_size
+        )
         g = torch.Generator()
         g.manual_seed(seed)
         samplers = []
@@ -462,14 +483,14 @@ class ClassStratifiedSampler(torch.utils.data.Sampler):
             if not self.unique_cpb:
                 i_size = len(t_indices) // self.world_size
                 if i_size > 0:
-                    t_indices = t_indices[self.rank*i_size:(self.rank+1)*i_size]
+                    t_indices = t_indices[self.rank * i_size : (self.rank + 1) * i_size]
             if len(t_indices) > 1:
                 t_indices = t_indices[torch.randperm(len(t_indices), generator=g)]
             samplers.append(iter(t_indices))
         return samplers
 
     def _subsample_samplers(self, samplers):
-        """ Subsample a small set of samplers from all class-samplers """
+        """Subsample a small set of samplers from all class-samplers"""
         subsample = self._get_perm_ssi()
         subsampled_samplers = []
         for i in subsample:
@@ -478,12 +499,15 @@ class ClassStratifiedSampler(torch.utils.data.Sampler):
         return zip(*subsampled_samplers)
 
     def __iter__(self):
-        self._ssi = self.rank*self.cpb if self.unique_cpb else 0
+        self._ssi = self.rank * self.cpb if self.unique_cpb else 0
         self._next_perm()
 
         # -- iterations per epoch (extract batch-size samples from each class)
-        ipe = (self.num_classes // self.cpb if not self.unique_cpb
-               else self.num_classes // (self.cpb * self.world_size)) * self.batch_size
+        ipe = (
+            self.num_classes // self.cpb
+            if not self.unique_cpb
+            else self.num_classes // (self.cpb * self.world_size)
+        ) * self.batch_size
 
         for epoch in range(self.epochs):
 
@@ -505,25 +529,27 @@ class ClassStratifiedSampler(torch.utils.data.Sampler):
         if self.batch_size == 0:
             return 0
 
-        ipe = (self.num_classes // self.cpb if not self.unique_cpb
-               else self.num_classes // (self.cpb * self.world_size))
+        ipe = (
+            self.num_classes // self.cpb
+            if not self.unique_cpb
+            else self.num_classes // (self.cpb * self.world_size)
+        )
         return self.epochs * ipe
 
 
 class ImageNet(torchvision.datasets.ImageFolder):
-
     def __init__(
         self,
         root,
-        image_folder='imagenet_full_size/061417/',
-        tar_folder='imagenet_full_size/',
-        tar_file='imagenet_full_size-061417.tar',
+        image_folder="imagenet_full_size/061417/",
+        tar_folder="imagenet_full_size/",
+        tar_file="imagenet_full_size-061417.tar",
         train=True,
         transform=None,
         target_transform=None,
         job_id=None,
         local_rank=None,
-        copy_data=True
+        copy_data=True,
     ):
         """
         ImageNet
@@ -538,10 +564,10 @@ class ImageNet(torchvision.datasets.ImageFolder):
         :param copy_data: whether to copy data from network file locally
         """
 
-        suffix = 'train/' if train else 'val/'
+        suffix = "train/" if train else "val/"
         data_path = None
         if copy_data:
-            logger.info('copying data locally')
+            logger.info("copying data locally")
             data_path = copy_imgnt_locally(
                 root=root,
                 suffix=suffix,
@@ -549,32 +575,31 @@ class ImageNet(torchvision.datasets.ImageFolder):
                 tar_folder=tar_folder,
                 tar_file=tar_file,
                 job_id=job_id,
-                local_rank=local_rank)
+                local_rank=local_rank,
+            )
         if (not copy_data) or (data_path is None):
             data_path = os.path.join(root, image_folder, suffix)
-        logger.info(f'data-path {data_path}')
+        logger.info(f"data-path {data_path}")
 
         super(ImageNet, self).__init__(
-            root=data_path,
-            transform=transform,
-            target_transform=target_transform)
-        logger.info('Initialized ImageNet')
+            root=data_path, transform=transform, target_transform=target_transform
+        )
+        logger.info("Initialized ImageNet")
 
 
 class ImageDR(torchvision.datasets.ImageFolder):
-
     def __init__(
         self,
         root,
-        image_folder='imagenet_full_size/061417/',
-        tar_folder='imagenet_full_size/',
-        tar_file='imagenet_full_size-061417.tar',
+        image_folder="imagenet_full_size/061417/",
+        tar_folder="imagenet_full_size/",
+        tar_file="imagenet_full_size-061417.tar",
         train=True,
         transform=None,
         target_transform=None,
         job_id=None,
         local_rank=None,
-        copy_data=True
+        copy_data=True,
     ):
         """
         ImageNet
@@ -591,10 +616,10 @@ class ImageDR(torchvision.datasets.ImageFolder):
         :param copy_data: whether to copy data from network file locally
         """
 
-        suffix = 'train/' if train else 'val/'
+        suffix = "train/" if train else "val/"
         data_path = None
         if copy_data:
-            logger.info('copying data locally')
+            logger.info("copying data locally")
             data_path = copy_imgnt_locally(
                 root=root,
                 suffix=suffix,
@@ -602,20 +627,19 @@ class ImageDR(torchvision.datasets.ImageFolder):
                 tar_folder=tar_folder,
                 tar_file=tar_file,
                 job_id=job_id,
-                local_rank=local_rank)
+                local_rank=local_rank,
+            )
         if (not copy_data) or (data_path is None):
             data_path = os.path.join(root, image_folder, suffix)
-        logger.info(f'data-path {data_path}')
+        logger.info(f"data-path {data_path}")
 
         super(ImageDR, self).__init__(
-            root=data_path,
-            transform=transform,
-            target_transform=target_transform)
-        logger.info('Initialized ImageDR')
+            root=data_path, transform=transform, target_transform=target_transform
+        )
+        logger.info("Initialized ImageDR")
 
 
 class TransImageDR(ImageNet):
-
     def __init__(
         self,
         dataset,
@@ -623,7 +647,7 @@ class TransImageDR(ImageNet):
         supervised_views=1,
         init_transform=None,
         multicrop_transform=(0, None),
-        seed=0
+        seed=0,
     ):
         """
         TransImageDR
@@ -642,20 +666,17 @@ class TransImageDR(ImageNet):
         self.targets, self.samples = dataset.targets, dataset.samples
         if self.supervised:
             self.targets, self.samples = init_transform(
-                dataset.root,
-                dataset.samples,
-                dataset.class_to_idx,
-                seed)
-            logger.debug(f'num-labeled {len(self.samples)}')
+                dataset.root, dataset.samples, dataset.class_to_idx, seed
+            )
+            logger.debug(f"num-labeled {len(self.samples)}")
             mint = None
             self.target_indices = []
             for t in range(len(dataset.classes)):
-                indices = np.squeeze(np.argwhere(
-                    self.targets == t)).tolist()
+                indices = np.squeeze(np.argwhere(self.targets == t)).tolist()
                 self.target_indices.append(indices)
                 mint = len(indices) if mint is None else min(mint, len(indices))
-                logger.debug(f'num-labeled target {t} {len(indices)}')
-            logger.debug(f'min. labeled indices {mint}')
+                logger.debug(f"num-labeled target {t} {len(indices)}")
+            logger.debug(f"min. labeled indices {mint}")
 
     @property
     def classes(self):
@@ -671,7 +692,13 @@ class TransImageDR(ImageNet):
 
         if self.dataset.transform is not None:
             if self.supervised:
-                ans = *[self.dataset.transform(img) for _ in range(self.supervised_views)], target
+                ans = (
+                    *[
+                        self.dataset.transform(img)
+                        for _ in range(self.supervised_views)
+                    ],
+                    target,
+                )
                 return ans
             else:
                 img_1 = self.dataset.transform(img)
@@ -691,55 +718,54 @@ class TransImageDR(ImageNet):
 def copy_imgnt_locally(
     root,
     suffix,
-    image_folder='imagenet_full_size/061417/',
-    tar_folder='imagenet_full_size/',
-    tar_file='imagenet_full_size-061417.tar',
+    image_folder="imagenet_full_size/061417/",
+    tar_folder="imagenet_full_size/",
+    tar_file="imagenet_full_size-061417.tar",
     job_id=None,
-    local_rank=None
+    local_rank=None,
 ):
     if job_id is None:
         try:
-            job_id = os.environ['SLURM_JOBID']
+            job_id = os.environ["SLURM_JOBID"]
         except Exception:
-            logger.info('No job-id, will load directly from network file')
+            logger.info("No job-id, will load directly from network file")
             return None
 
     if local_rank is None:
         try:
-            local_rank = int(os.environ['SLURM_LOCALID'])
+            local_rank = int(os.environ["SLURM_LOCALID"])
         except Exception:
-            logger.info('No job-id, will load directly from network file')
+            logger.info("No job-id, will load directly from network file")
             return None
 
     source_file = os.path.join(root, tar_folder, tar_file)
-    target = f'/scratch/slurm_tmpdir/{job_id}/'
+    target = f"/scratch/slurm_tmpdir/{job_id}/"
     target_file = os.path.join(target, tar_file)
     data_path = os.path.join(target, image_folder, suffix)
-    logger.info(f'{source_file}\n{target}\n{target_file}\n{data_path}')
+    logger.info(f"{source_file}\n{target}\n{target_file}\n{data_path}")
 
-    tmp_sgnl_file = os.path.join(target, 'copy_signal.txt')
+    tmp_sgnl_file = os.path.join(target, "copy_signal.txt")
 
     if not os.path.exists(data_path):
         if local_rank == 0:
-            commands = [
-                ['tar', '-xf', source_file, '-C', target]]
+            commands = [["tar", "-xf", source_file, "-C", target]]
             for cmnd in commands:
                 start_time = time.time()
-                logger.info(f'Executing {cmnd}')
+                logger.info(f"Executing {cmnd}")
                 subprocess.run(cmnd)
-                logger.info(f'Cmnd took {(time.time()-start_time)/60.} min.')
-            with open(tmp_sgnl_file, '+w') as f:
-                print('Done copying locally.', file=f)
+                logger.info(f"Cmnd took {(time.time()-start_time)/60.} min.")
+            with open(tmp_sgnl_file, "+w") as f:
+                print("Done copying locally.", file=f)
         else:
             while not os.path.exists(tmp_sgnl_file):
                 time.sleep(60)
-                logger.info(f'{local_rank}: Checking {tmp_sgnl_file}')
+                logger.info(f"{local_rank}: Checking {tmp_sgnl_file}")
 
     return data_path
 
 
 class GaussianBlur(object):
-    def __init__(self, p=0.5, radius_min=0.1, radius_max=2.):
+    def __init__(self, p=0.5, radius_min=0.1, radius_max=2.0):
         self.prob = p
         self.radius_min = radius_min
         self.radius_max = radius_max
