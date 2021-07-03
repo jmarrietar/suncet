@@ -1,18 +1,12 @@
-criterion:
-  classes_per_batch: 2
-  supervised_views: 2
-  supervised_batch_size: 64
-  temperature: 0.1
 data:
   data_seed: 152
   dataset: dr_fine_tune
   image_folder: dr/sample@1000/
-  label_smoothing: 0.0
   normalize: true
+  num_classes: 1000
   root_path: datasets/
-  subset_path: dr_subsets/
-  unique_classes_per_rank: false
-  unlabeled_frac: 0.92
+  subset_path: imagenet_subsets/
+  unlabeled_frac: 0.90
 logging:
   folder: "logs/"
   pretrain_path: paws-latest.pth.tar
@@ -21,17 +15,13 @@ meta:
   copy_data: true
   device: cuda:0
   load_checkpoint: false
+  master_port: 4029
   model_name: resnet50
-  output_dim: 128
-  use_pred_head: false
+  training: true
   use_fp16: true
 optimization:
-  epochs: 30
-  final_lr: 0.01
-  lr: 0.1
-  momentum: 0.9
-  nesterov: false
-  start_lr: 0.1
-  use_lars: true
-  warmup: 0
+  epochs: 50
+  lr: 0.02
+  use_lars: false
   weight_decay: 0.0
+  zero_init: true
