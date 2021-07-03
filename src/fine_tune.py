@@ -141,30 +141,6 @@ def main(args):
     ipe = len(data_loader)
     logger.info(f'initialized data-loader (ipe {ipe})')
 
-    # -- make val data transforms and data loaders/samples
-    val_transform, val_init_transform = make_transforms(
-        dataset_name=dataset_name,
-        subset_path=subset_path,
-        unlabeled_frac=-1,
-        training=True,
-        basic_augmentations=True,
-        force_center_crop=True,
-        normalize=normalize)
-    (val_data_loader,
-     val_dist_sampler) = init_data(
-         dataset_name=dataset_name,
-         transform=val_transform,
-         init_transform=val_init_transform,
-         u_batch_size=None,
-         s_batch_size=batch_size,
-         classes_per_batch=None,
-         world_size=1,
-         rank=0,
-         root_path=root_path,
-         image_folder=image_folder,
-         training=True,
-         copy_data=copy_data)
-    logger.info(f'initialized val data-loader (ipe {len(val_data_loader)})')
 
     # -- init model and optimizer
     scaler = torch.cuda.amp.GradScaler(enabled=use_fp16)
@@ -207,55 +183,36 @@ def main(args):
 
         def train_step():
             # -- update distributed-data-loader epoch
-            dist_sampler.set_epoch(epoch)
-            top1_correct, top5_correct, total = 0, 0, 0
+            top1_correct, total = 0, 0
             for i, data in enumerate(data_loader):
                 with torch.cuda.amp.autocast(enabled=use_fp16):
                     inputs, labels = data[0].to(device), data[1].to(device)
                     outputs = encoder(inputs)
                     loss = criterion(outputs, labels)
                 total += inputs.shape[0]
-                top5_correct += float(outputs.topk(5, dim=1).indices.eq(labels.unsqueeze(1)).sum())
                 top1_correct += float(outputs.max(dim=1).indices.eq(labels).sum())
                 top1_acc = 100. * top1_correct / total
-                top5_acc = 100. * top5_correct / total
-                if training:
-                    scaler.scale(loss).backward()
-                    scaler.step(optimizer)
-                    scaler.update()
-                    scheduler.step()
-                    optimizer.zero_grad()
+                
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
+                optimizer.zero_grad()
                 if i % log_freq == 0:
-                    logger.info('[%d, %5d] %.3f%% %.3f%% (loss: %.3f)'
-                                % (epoch + 1, i, top1_acc, top5_acc, loss))
-            return 100. * top1_correct / total
-
-        def val_step():
-            val_encoder = copy.deepcopy(encoder).eval()
-            top1_correct, total = 0, 0
-            for i, data in enumerate(val_data_loader):
-                inputs, labels = data[0].to(device), data[1].to(device)
-                outputs = val_encoder(inputs)
-                total += inputs.shape[0]
-                top1_correct += float(outputs.max(dim=1).indices.eq(labels).sum())
-                top1_acc = 100. * top1_correct / total
-
-            logger.info('[%d, %5d] %.3f%%' % (epoch + 1, i, top1_acc))
+                    logger.info('[%d, %5d] %.3f%% (loss: %.3f)'
+                                % (epoch + 1, i, top1_acc, loss))
             return 100. * top1_correct / total
 
         train_top1 = 0.
         train_top1 = train_step()
-        with torch.no_grad():
-            val_top1 = val_step()
 
-        log_str = 'train:' if training else 'test:'
-        logger.info('[%d] (%s: %.3f%%) (val: %.3f%%)'
-                    % (epoch + 1, log_str, train_top1, val_top1))
+        log_str = 'train:'
+        logger.info('[%d] (%s: %.3f%%) '
+                    % (epoch + 1, log_str, train_top1))
 
         # -- logging/checkpointing
-        if training and (rank == 0) and ((best_acc is None)
-                                         or (best_acc < val_top1)):
-            best_acc = val_top1
+        if rank == 0:
+
             save_dict = {
                 'encoder': encoder.state_dict(),
                 'opt': optimizer.state_dict(),
@@ -263,7 +220,6 @@ def main(args):
                 'epoch': epoch + 1,
                 'unlabel_prob': unlabeled_frac,
                 'world_size': world_size,
-                'best_top1_acc': best_acc,
                 'batch_size': batch_size,
                 'lr': ref_lr,
                 'amp': scaler.state_dict()
