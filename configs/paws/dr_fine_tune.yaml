@@ -5,7 +5,7 @@ data:
   normalize: true
   num_classes: 1000
   root_path: datasets/
-  subset_path: imagenet_subsets/
+  subset_path: dr_subsets/
   unlabeled_frac: 0.90
 logging:
   folder: "logs/"
