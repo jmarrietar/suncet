@@ -103,7 +103,7 @@ def main(args):
 
     # -- optimization/evaluation params
     if training:
-        batch_size = 256
+        batch_size = 32
     else:
         batch_size = 16
         unlabeled_frac = 0.0
