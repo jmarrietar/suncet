@@ -40,7 +40,8 @@ def init_data(
     world_size=1,
     rank=0,
     root_path=None,
-    image_folder=None,
+    s_image_folder=None,
+    u_image_folder=None,
     training=True,
     copy_data=False,
     stratify=False,
@@ -65,7 +66,6 @@ def init_data(
     :param copy_data: whether to copy data locally to node at start of training
     """
 
-
     if dataset_name == 'dr':
         return _init_dr_data(
             transform=transform,
@@ -79,7 +79,8 @@ def init_data(
             world_size=world_size,
             rank=rank,
             root_path=root_path,
-            image_folder=image_folder,
+            s_image_folder=s_image_folder,
+            u_image_folder=u_image_folder,
             training=training,
             copy_data=copy_data)
 
@@ -99,15 +100,25 @@ def _init_dr_data(
     world_size=1,
     rank=0,
     root_path='/datasets/',
-    image_folder='imagenet_full_size/061417/',
+    s_image_folder='imagenet_full_size/061417/',
+    u_image_folder='imagenet_full_size/061417/',
     training=True,
     copy_data=False,
     tar_folder='imagenet_full_size/',
     tar_file='imagenet_full_size-061417.tar'
 ):
-    imagedr = ImageDR(
+    s_imagedr = ImageDR(
         root=root_path,
-        image_folder=image_folder,
+        image_folder=s_image_folder,
+        tar_folder=tar_folder,
+        tar_file=tar_file,
+        transform=transform,
+        train=training,
+        copy_data=copy_data)
+
+    u_imagedr = ImageDR(
+        root=root_path,
+        image_folder=u_image_folder,
         tar_folder=tar_folder,
         tar_file=tar_file,
         transform=transform,
@@ -115,8 +126,9 @@ def _init_dr_data(
         copy_data=copy_data)
     logger.info('ImageDR dataset created')
 
+    logger.info('Making unsupervised ImageDR data loader...')
     unsupervised_set = TransImageDR(
-        dataset=imagedr,
+        dataset=u_imagedr,
         supervised=False,
         init_transform=init_transform,
         multicrop_transform=multicrop_transform,
@@ -138,7 +150,7 @@ def _init_dr_data(
     if classes_per_batch > 0 and s_batch_size > 0:
         logger.info('Making supervised ImageDR data loader...')
         supervised_set = TransImageDR(
-            dataset=imagedr,
+            dataset=s_imagedr,
             supervised=True,
             supervised_views=supervised_views,
             init_transform=init_transform,
@@ -146,13 +158,10 @@ def _init_dr_data(
         supervised_sampler = ClassStratifiedSampler(
             data_source=supervised_set,
             world_size=world_size,
-            #world_size=4,
             rank=rank,
             batch_size=s_batch_size,
-            #classes_per_batch=classes_per_batch,
-            classes_per_batch=2,
-            #unique_classes=unique_classes,
-            unique_classes=False,
+            classes_per_batch=classes_per_batch,
+            unique_classes=unique_classes,
             seed=_GLOBAL_SEED)
         supervised_loader = torch.utils.data.DataLoader(
             supervised_set,

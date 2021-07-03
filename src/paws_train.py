@@ -94,7 +94,8 @@ def main(args):
     color_jitter = args['data']['color_jitter_strength']
     normalize = args['data']['normalize']
     root_path = args['data']['root_path']
-    image_folder = args['data']['image_folder']
+    s_image_folder = args['data']['s_image_folder']
+    u_image_folder = args['data']['u_image_folder']
     dataset_name = args['data']['dataset']
     subset_path = args['data']['subset_path']
     unique_classes = args['data']['unique_classes_per_rank']
@@ -212,7 +213,8 @@ def main(args):
          world_size=world_size,
          rank=rank,
          root_path=root_path,
-         image_folder=image_folder,
+         s_image_folder=s_image_folder,
+         u_image_folder=u_image_folder,
          training=True,
          copy_data=copy_data)
     iter_supervised = None
