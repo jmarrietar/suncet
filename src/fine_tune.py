@@ -111,7 +111,7 @@ def main(args):
         num_epochs = 1
 
     # -- init loss
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.BCELoss() # YO CHANGED HERE
 
     # -- make train data transforms and data loaders/samples
     transform, init_transform = make_transforms(
@@ -185,13 +185,17 @@ def main(args):
             # -- update distributed-data-loader epoch
             top1_correct, total = 0, 0
             for i, data in enumerate(data_loader):
-                with torch.cuda.amp.autocast(enabled=use_fp16):
+                with torch.cuda.amp.autocast(enabled=False): # Yo
                     inputs, labels = data[0].to(device), data[1].to(device)
+
+                    labels = labels.unsqueeze(1) ## YO
+                    labels = labels.float() ## YO
+
                     outputs = encoder(inputs)
                     loss = criterion(outputs, labels)
                 total += inputs.shape[0]
-                top1_correct += float(outputs.max(dim=1).indices.eq(labels).sum())
-                top1_acc = 100. * top1_correct / total
+                top1_correct += float(sum(((outputs>0.5)*1 == labels)*1))
+                top1_acc = 100. * (top1_correct / total)
                 
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
@@ -201,7 +205,7 @@ def main(args):
                 if i % log_freq == 0:
                     logger.info('[%d, %5d] %.3f%% (loss: %.3f)'
                                 % (epoch + 1, i, top1_acc, loss))
-            return 100. * top1_correct / total
+            return 100. * (top1_correct / total)
 
         train_top1 = 0.
         train_top1 = train_step()
@@ -226,7 +230,7 @@ def main(args):
             }
             torch.save(save_dict, w_enc_path)
 
-    return train_top1, val_top1
+    return train_top1
 
 
 def load_pretrained(
@@ -312,7 +316,8 @@ def init_model(
         ('fc1', torch.nn.Linear(hidden_dim, hidden_dim)),
         ('bn1', torch.nn.BatchNorm1d(hidden_dim)),
         ('relu1', torch.nn.ReLU(inplace=True)),
-        ('fc2', torch.nn.Linear(hidden_dim, num_classes))
+        ('fc2', torch.nn.Linear(hidden_dim, 1)), # YO changed
+        ('sg', torch.nn.Sigmoid())  # YO 
     ]))
 
     encoder.to(device)
