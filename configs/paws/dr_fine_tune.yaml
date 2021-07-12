@@ -3,7 +3,7 @@ data:
   dataset: dr_fine_tune
   image_folder: dr/sample@1000/
   normalize: true
-  num_classes: 1000
+  num_classes: 2
   root_path: datasets/
   subset_path: dr_subsets/
   unlabeled_frac: 0.90
