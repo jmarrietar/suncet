@@ -40,6 +40,7 @@ from src.sgd import SGD
 from src.lars import LARS
 
 import torchvision.models as models
+from torch.hub import load_state_dict_from_url
 
 import apex
 from torch.nn.parallel import DistributedDataParallel
@@ -432,8 +433,14 @@ def init_model(device, model_name="resnet50", use_pred=False, output_dim=128):
         encoder = wide_resnet.__dict__[model_name](dropout_rate=0.0)
         hidden_dim = 128
     else:
-        #encoder = resnet.__dict__[model_name]() # Commented here in order to user pre-trained ImagaNet
-        encoder = models.resnet50(pretrained=True)
+        encoder = resnet.__dict__[model_name]() 
+
+        # Load pre-trained ResNetImagenNet
+        logger.info("Load pre-trained ResNet ImagenNet weigths ...")
+        state_dict = load_state_dict_from_url('https://download.pytorch.org/models/resnet50-0676ba61.pth',
+                                              progress=True)
+        encoder.load_state_dict(state_dict)
+        
         hidden_dim = 2048
         if "w2" in model_name:
             hidden_dim *= 2
