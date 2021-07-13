@@ -439,8 +439,9 @@ def init_model(device, model_name="resnet50", use_pred=False, output_dim=128):
         logger.info("Load pre-trained ResNet ImagenNet weigths ...")
         state_dict = load_state_dict_from_url('https://download.pytorch.org/models/resnet50-0676ba61.pth',
                                               progress=True)
-        encoder.load_state_dict(state_dict)
-        
+        log = encoder.load_state_dict(state_dict, strict=False)
+        logger.info(log)
+    
         hidden_dim = 2048
         if "w2" in model_name:
             hidden_dim *= 2
