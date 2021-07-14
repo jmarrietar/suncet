@@ -43,7 +43,7 @@ from src.lars import LARS
 
 # --
 log_timings = True
-log_freq = 10
+log_freq = 2
 checkpoint_freq = 50
 # --
 
