@@ -21,7 +21,7 @@ meta:
   use_fp16: true
 optimization:
   epochs: 50
-  lr: 0.02
+  lr: 0.00001
   use_lars: false
   weight_decay: 0.0
   zero_init: true
