@@ -111,11 +111,11 @@ def _init_dr_data(
     u_batch_size,
     s_batch_size,
     classes_per_batch,
+    world_size,
+    rank,
     unique_classes=False,
     multicrop_transform=(0, None),
     supervised_views=1,
-    world_size=1,
-    rank=0,
     root_path="/datasets/",
     s_image_folder="imagenet_full_size/061417/",
     u_image_folder="imagenet_full_size/061417/",
@@ -169,6 +169,7 @@ def _init_dr_data(
     supervised_sampler, supervised_loader = None, None
     if classes_per_batch > 0 and s_batch_size > 0:
         logger.info("Making supervised ImageDR data loader...")
+
         supervised_set = TransImageDR(
             dataset=s_imagedr,
             supervised=True,
@@ -176,25 +177,21 @@ def _init_dr_data(
             init_transform=init_transform,
             seed=_GLOBAL_SEED,
         )
-        supervised_sampler = ClassStratifiedSampler(
-            data_source=supervised_set,
-            world_size=world_size,
-            rank=rank,
-            batch_size=s_batch_size,
-            classes_per_batch=classes_per_batch,
-            unique_classes=unique_classes,
-            seed=_GLOBAL_SEED,
+
+
+        supervised_sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset=supervised_set, num_replicas=world_size, rank=rank
         )
+
         supervised_loader = torch.utils.data.DataLoader(
             supervised_set,
-            batch_sampler=supervised_sampler,
+            sampler=supervised_sampler,
+            batch_size=s_batch_size*2, # YOO LE Agrege la Multiplicacion
+            drop_last=True,
             pin_memory=True,
             num_workers=8,
         )
-        if len(supervised_loader) > 0:
-            tmp = ceil(len(unsupervised_loader) / len(supervised_loader))
-            supervised_sampler.set_inner_epochs(tmp)
-            logger.info(f"supervised-reset-period {tmp}")
+
         logger.info("ImageDR supervised data loader created")
 
     return (
@@ -209,11 +206,11 @@ def _init_imgnt_ft_data(
     transform,
     init_transform,
     batch_size,
+    world_size,
+    rank,
     stratify=False,
     classes_per_batch=1,
     unique_classes=False,
-    world_size=1,
-    rank=0,
     root_path="/datasets/",
     image_folder="imagenet_full_size/061417/",
     training=True,

@@ -42,7 +42,7 @@ from src.lars import LARS
 import torchvision.models as models
 from torch.hub import load_state_dict_from_url
 
-import apex
+#import apex
 from torch.nn.parallel import DistributedDataParallel
 
 # --
