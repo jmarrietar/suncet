@@ -171,8 +171,6 @@ def main(args):
         smoothing=label_smoothing,
     )
 
-    print("normalize {}".format(normalize))
-
     # -- make data transforms
     transform, init_transform = make_transforms(
         dataset_name=dataset_name,

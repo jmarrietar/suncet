@@ -736,8 +736,6 @@ class TransImageDR(ImageNet):
         self.supervised_views = supervised_views
         self.multicrop_transform = multicrop_transform
 
-        print("self.multicrop_transform {}".format(self.multicrop_transform))
-
         self.targets, self.samples = dataset.targets, dataset.samples
         if self.supervised:
             self.targets, self.samples = init_transform(
