@@ -689,6 +689,8 @@ class ImageDR(torchvision.datasets.ImageFolder):
         """
 
         suffix = "train/" if train else "val/"
+        if "train_voets" in image_folder:
+            suffix = ""
         data_path = None
         if copy_data:
             logger.info("copying data locally")
